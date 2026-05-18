@@ -1,0 +1,22 @@
+# Core
+numpy>=1.26
+psutil>=5.9
+tqdm>=4.66
+
+# Embeddings
+sentence-transformers>=2.7
+torch>=2.1
+
+# Datasets
+datasets>=2.18
+
+# Vector DBs
+faiss-cpu>=1.8
+qdrant-client>=1.9
+chromadb>=0.5
+psycopg[binary]>=3.1
+pgvector>=0.3
+
+# Plotting
+matplotlib>=3.8
+pandas>=2.2
