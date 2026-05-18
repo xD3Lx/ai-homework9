@@ -18,6 +18,13 @@ def main():
         raise FileNotFoundError(f"Missing input file: {source}")
 
     rows = load_rows(source)
+    required_columns = {"size", "recall@1", "recall@10"}
+    if not rows:
+        raise ValueError(f"No rows found in CSV: {source}")
+    missing_columns = required_columns - set(rows[0].keys())
+    if missing_columns:
+        raise ValueError(f"Missing required CSV columns: {sorted(missing_columns)}")
+
     sizes, recall_1, recall_10 = [], [], []
     for idx, row in enumerate(rows, start=1):
         try:
