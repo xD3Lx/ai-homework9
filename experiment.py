@@ -5,11 +5,11 @@ import psutil
 import numpy as np
 import faiss
 from pathlib import Path
-from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
 from template.data_loader import load_cache, build_subset
 from template.metrics import evaluate
+from retriever import NaiveNumpyRetriever
 
 def check_process_ram():
     process = psutil.Process(os.getpid())
@@ -122,8 +122,42 @@ def main():
     print(f"  query_embeddings:  {query_embeddings.shape}, {query_embeddings.dtype} "
           f"in {time.time() - t0:.1f}s")
 
+    id_to_pos = {d["id"]: i for i, d in enumerate(pool)}
     sizes = [1000, 10000, 100000, 300000]
     results = {}
+
+    for size in sizes:
+        if size > len(pool):
+            continue
+        subset = build_subset(pool, eval_set, size)
+        positions = [id_to_pos[d["id"]] for d in subset]
+        subset_emb = corpus_embeddings[positions]
+        subset_ids = [d["id"] for d in subset]
+
+        retriever = NaiveNumpyRetriever()
+        ram_before = check_process_ram()
+        retriever.build(subset_emb, subset_ids)
+        ram_after_build = check_process_ram()
+
+        # Per-query latencies → p50/p95/p99.
+        latencies_ms = []
+        retrieved = []
+        for q in query_embeddings:
+            t0 = time.perf_counter()
+            ret = retriever.search(q[None, :], k=10)
+            latencies_ms.append((time.perf_counter() - t0) * 1000)
+            retrieved.append(ret[0])
+        p50, p95, p99 = np.percentile(latencies_ms, [50, 95, 99])
+
+        metrics = evaluate(eval_set, retrieved, ks=(1, 5, 10))
+
+        results[size] = {
+            "latency_ms": {"p50": round(p50, 2), "p95": round(p95, 2), "p99": round(p99, 2)},
+            "index_ram_mb": ram_after_build - ram_before,
+            **metrics,
+        }
+
+    print("\n" + json.dumps(results, indent=2))
 
 
 if __name__ == "__main__":
