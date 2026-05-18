@@ -83,10 +83,14 @@ def main():
     device = "mps" if torch.backends.mps.is_available() else "cpu"
     print(device)
     model = SentenceTransformer("BAAI/bge-small-en-v1.5", device=device)
+    # Cap sequence length — attention memory grows with seq^2.
+    # MS MARCO passages fit comfortably in 256 tokens.
+    model.max_seq_length = 256
 
     # BGE recommends an instruction prefix on queries but NOT on passages.
     QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
-    BATCH_SIZE = 512
+    # batch_size=512 OOMs on MPS; 64 is safe for bge-small at seq_len=256.
+    BATCH_SIZE = 64
 
     print(f"Embedding {len(pool)} corpus docs...")
     t0 = time.time()
@@ -100,6 +104,10 @@ def main():
     )
     print(f"  corpus_embeddings: {corpus_embeddings.shape}, {corpus_embeddings.dtype} "
           f"in {time.time() - t0:.1f}s, RAM={check_process_ram()} MB")
+
+    # Release MPS buffers held by the corpus pass before embedding queries.
+    if device == "mps":
+        torch.mps.empty_cache()
 
     print(f"Embedding {len(eval_set)} eval queries...")
     t0 = time.time()
