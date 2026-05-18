@@ -138,7 +138,7 @@ def main():
         subset_ids = [d["id"] for d in subset]
         subset_texts = [d["text"] for d in subset]
 
-        retriever = HybridRRFRetriever(k_rrf=60, candidate_k=100)
+        retriever = HybridRRFRetriever(k_rrf=60, candidate_k=1000)
         retriever.build(subset_texts, subset_emb, subset_ids)
         ram_after_build = check_process_ram()
 
