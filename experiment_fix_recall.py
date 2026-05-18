@@ -10,7 +10,7 @@ from sentence_transformers import SentenceTransformer
 
 from template.data_loader import load_cache, build_subset
 from template.metrics import evaluate
-from retriever import NaiveNumpyRetriever
+from retriever import HybridRRFRetriever
 
 def check_process_ram():
     process = psutil.Process(os.getpid())
@@ -126,6 +126,7 @@ def main():
     id_to_pos = {d["id"]: i for i, d in enumerate(pool)}
     sizes = [1000, 10000, 100000, 300000]
     results = {}
+    query_texts = [e["query"] for e in eval_set]
 
     for size in sizes:
         ram_before = check_process_ram()
@@ -135,17 +136,18 @@ def main():
         positions = [id_to_pos[d["id"]] for d in subset]
         subset_emb = corpus_embeddings[positions]
         subset_ids = [d["id"] for d in subset]
+        subset_texts = [d["text"] for d in subset]
 
-        retriever = NaiveNumpyRetriever()
-        retriever.build(subset_emb, subset_ids)
+        retriever = HybridRRFRetriever(k_rrf=60, candidate_k=100)
+        retriever.build(subset_texts, subset_emb, subset_ids)
         ram_after_build = check_process_ram()
 
         # Per-query latencies → p50/p95/p99.
         latencies_ms = []
         retrieved = []
-        for q in query_embeddings:
+        for qt, qe in zip(query_texts, query_embeddings):
             t0 = time.perf_counter()
-            ret = retriever.search(q[None, :], k=10)
+            ret = retriever.search([qt], qe[None, :], k=10)
             latencies_ms.append((time.perf_counter() - t0) * 1000)
             retrieved.append(ret[0])
         p50, p95, p99 = np.percentile(latencies_ms, [50, 95, 99])
@@ -160,7 +162,7 @@ def main():
 
     print("\n" + json.dumps(results, indent=2))
 
-    csv_path = Path("results_naive.csv")
+    csv_path = Path("results_hybrid_rrf.csv")
     fieldnames = [
         "size",
         "latency_p50_ms", "latency_p95_ms", "latency_p99_ms",
