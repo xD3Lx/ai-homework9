@@ -7,8 +7,11 @@ import matplotlib.pyplot as plt
 
 def load_rows(path: Path):
     """Read CSV rows from the given path."""
-    with path.open() as f:
-        return list(csv.DictReader(f))
+    try:
+        with path.open() as f:
+            return list(csv.DictReader(f))
+    except (OSError, UnicodeDecodeError) as err:
+        raise RuntimeError(f"Failed to read CSV file: {path}") from err
 
 
 def main():
@@ -26,13 +29,13 @@ def main():
         raise ValueError(f"Missing required CSV columns: {sorted(missing_columns)}")
 
     sizes, recall_1, recall_10 = [], [], []
-    for idx, row in enumerate(rows, start=1):
+    for row_num, row in enumerate(rows, start=1):
         try:
             sizes.append(int(row["size"]))
             recall_1.append(float(row["recall@1"]))
             recall_10.append(float(row["recall@10"]))
         except (KeyError, ValueError) as err:
-            raise ValueError(f"Invalid CSV data at row {idx}: {row}") from err
+            raise ValueError(f"Invalid CSV data at row {row_num}: {row}") from err
 
     plt.figure(figsize=(8, 5))
     plt.plot(sizes, recall_1, marker="o", label="Recall@1")
