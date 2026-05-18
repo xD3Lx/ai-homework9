@@ -9,9 +9,12 @@ class Retriever:
 
 
 class NaiveNumpyRetriever(Retriever):
-    """Brute-force cosine similarity via a single (Q, N) matmul.
+    """NumPy brute-force baseline.
 
-    Assumes embeddings are L2-normalized → dot product == cosine similarity.
+    For each query, scores the entire corpus via a single matmul and sorts all
+    scores. Assumes embeddings are L2-normalized so dot product == cosine
+    similarity. This is the reference against which approximate indexes
+    (faiss IVF/HNSW/PQ) are compared.
     """
 
     def build(self, embeddings: np.ndarray, ids: list[str]) -> None:
@@ -20,10 +23,6 @@ class NaiveNumpyRetriever(Retriever):
 
     def search(self, queries: np.ndarray, k: int) -> list[list[str]]:
         q = np.ascontiguousarray(queries, dtype=np.float32)
-        k = min(k, self.emb.shape[0])
-        scores = q @ self.emb.T                                  # (Q, N)
-        part = np.argpartition(-scores, kth=k - 1, axis=1)[:, :k]  # unordered top-k
-        rows = np.arange(scores.shape[0])[:, None]
-        order = np.argsort(-scores[rows, part], axis=1)
-        top = part[rows, order]                                  # (Q, k) ranked
+        scores = q @ self.emb.T                       # (Q, N) cosine similarity
+        top = np.argsort(-scores, axis=1)[:, :k]      # full sort per query
         return [[self.ids[i] for i in row] for row in top]

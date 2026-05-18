@@ -127,6 +127,7 @@ def main():
     results = {}
 
     for size in sizes:
+        ram_before = check_process_ram()
         if size > len(pool):
             continue
         subset = build_subset(pool, eval_set, size)
@@ -135,7 +136,6 @@ def main():
         subset_ids = [d["id"] for d in subset]
 
         retriever = NaiveNumpyRetriever()
-        ram_before = check_process_ram()
         retriever.build(subset_emb, subset_ids)
         ram_after_build = check_process_ram()
 
@@ -153,7 +153,7 @@ def main():
 
         results[size] = {
             "latency_ms": {"p50": round(p50, 2), "p95": round(p95, 2), "p99": round(p99, 2)},
-            "index_ram_mb": ram_after_build - ram_before,
+            "embeddings_plus_index_ram_mb": ram_after_build - ram_before,
             **metrics,
         }
 
