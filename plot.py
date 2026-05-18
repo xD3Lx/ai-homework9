@@ -6,19 +6,26 @@ import matplotlib.pyplot as plt
 
 
 def load_rows(path: Path):
+    """Read CSV rows from the given path."""
     with path.open() as f:
         return list(csv.DictReader(f))
 
 
 def main():
+    """Create a baseline Recall@1/Recall@10 plot and save it as plot.png."""
     source = Path("results_naive.csv")
     if not source.exists():
         raise FileNotFoundError(f"Missing input file: {source}")
 
     rows = load_rows(source)
-    sizes = [int(row["size"]) for row in rows]
-    recall_1 = [float(row["recall@1"]) for row in rows]
-    recall_10 = [float(row["recall@10"]) for row in rows]
+    sizes, recall_1, recall_10 = [], [], []
+    for idx, row in enumerate(rows, start=1):
+        try:
+            sizes.append(int(row["size"]))
+            recall_1.append(float(row["recall@1"]))
+            recall_10.append(float(row["recall@10"]))
+        except (KeyError, ValueError) as err:
+            raise ValueError(f"Invalid CSV data at row {idx}: {row}") from err
 
     plt.figure(figsize=(8, 5))
     plt.plot(sizes, recall_1, marker="o", label="Recall@1")
