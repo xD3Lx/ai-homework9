@@ -10,7 +10,7 @@ from sentence_transformers import SentenceTransformer
 
 from template.data_loader import load_cache, build_subset
 from template.metrics import evaluate
-from retriever import FaissHNSWRetriever
+from retriever import NaiveNumpyRetriever
 
 def check_process_ram():
     process = psutil.Process(os.getpid())
@@ -136,7 +136,7 @@ def main():
         subset_emb = corpus_embeddings[positions]
         subset_ids = [d["id"] for d in subset]
 
-        retriever = FaissHNSWRetriever(M=32, ef_construction=200, ef_search=64)
+        retriever = NaiveNumpyRetriever()
         retriever.build(subset_emb, subset_ids)
         ram_after_build = check_process_ram()
 
@@ -160,7 +160,7 @@ def main():
 
     print("\n" + json.dumps(results, indent=2))
 
-    csv_path = Path("results_faiss_hnsw.csv")
+    csv_path = Path("results_naive.csv")
     fieldnames = [
         "size",
         "latency_p50_ms", "latency_p95_ms", "latency_p99_ms",
